@@ -22,7 +22,7 @@ type PeerSpec struct {
 	Endpoint  string   `json:"endpoint"` // public node address: ip + node port
 	Port      int      `json:"port"`
 	PublicKey string   `json:"public_key"` // wire-guard public key
-	IsHub     bool
+	IsHub     bool     `json:"ishub"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
