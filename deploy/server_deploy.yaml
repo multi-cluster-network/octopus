@@ -1,0 +1,49 @@
+---
+apiVersion: v1alpha1
+kind: ServiceAccount
+metadata:
+  name: syncer
+  namespace: lmxia
+---
+apiVersion: rbac.authorization.k8s.io/v1alpha1
+kind: ClusterRoleBinding
+metadata:
+  name: clusternet:controller-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: syncer
+    namespace: lmxia
+---
+apiVersion: apps/v1alpha1
+kind: Deployment
+metadata:
+  name: syncer
+  namespace: lmxia
+  labels:
+    app: octopus
+spec:
+  selector:
+    matchLabels:
+      app: octopus
+  template:
+    metadata:
+      labels:
+        app: octopus
+    spec:
+      containers:
+        - name: octopus
+          image: lmxia/octopus:v1alpha1
+          env:
+            - name: OCTOPUS_CLUSTERID
+              value: cluster1
+            - name: OCTOPUS_HUBURL
+              value: https://121.41.31.123:6443
+            - name: OCTOPUS_LOCALNAMESPACE
+              value: syncer-operator
+            - name: OCTOPUS_SHARENAMESPACE
+              value: syncer-operator
+      serviceAccountName: syncer
