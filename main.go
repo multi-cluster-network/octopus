@@ -57,7 +57,7 @@ func main() {
 		return
 	}
 	ctx := signals.SetupSignalHandler()
-	w, err := controllers.NewTunnel(oClient, ctx.Done())
+	w, err := controllers.NewTunnel(oClient, &agentSpec, ctx.Done())
 	if err != nil {
 		//
 		return

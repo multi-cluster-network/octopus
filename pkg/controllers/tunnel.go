@@ -44,13 +44,15 @@ type wireguard struct {
 	octopusClient *versioned.Clientset
 }
 
-func NewTunnel(octopusClient *versioned.Clientset, done <-chan struct{}) (*wireguard, error) {
+func NewTunnel(octopusClient *versioned.Clientset, spec *Specification, done <-chan struct{}) (*wireguard, error) {
 	var err error
 
 	w := &wireguard{
 		connections:   make(map[string]*v1alpha1.Peer),
 		StopCh:        done,
 		octopusClient: octopusClient,
+		keys:          &managedKeys{},
+		spec:          spec,
 	}
 
 	if err = w.setWGLink(); err != nil {
@@ -126,6 +128,7 @@ func (w *wireguard) Init() error {
 			PodCIDR:   w.spec.CIDR,
 			Endpoint:  w.spec.Endpoint,
 			IsHub:     w.spec.IsHub,
+			Port:      UDPPort,
 			PublicKey: w.keys.publicKey.String(),
 		},
 	}
