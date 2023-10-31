@@ -11,6 +11,7 @@ import (
 	"github.com/multi-cluster-network/octopus/pkg/generated/informers/externalversions"
 	kubeinformers "github.com/multi-cluster-network/octopus/pkg/generated/informers/externalversions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
@@ -31,6 +32,8 @@ func main() {
 	flag.Parse()
 
 	var oClient *octopusClientset.Clientset
+	var hubKubeConfig *rest.Config
+
 	agentSpec := controllers.Specification{}
 	restConfig, err := clientcmd.BuildConfigFromFlags(localMasterURL, localKubeconfig)
 	if err != nil {
@@ -43,7 +46,11 @@ func main() {
 	}
 
 	k8sClient, err := kubernetes.NewForConfig(restConfig)
-	hubKubeConfig, err := syncerConfig.GetHubConfig(k8sClient, agentSpec.HubURL, agentSpec.LocalNamespace)
+	if !agentSpec.IsHub {
+		hubKubeConfig, err = syncerConfig.GetHubConfig(k8sClient, agentSpec.HubURL, agentSpec.LocalNamespace)
+	} else {
+		hubKubeConfig = restConfig
+	}
 
 	if oClient, err = octopusClientset.NewForConfig(hubKubeConfig); err != nil {
 		//
