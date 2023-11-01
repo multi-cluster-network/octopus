@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -16,8 +15,6 @@ import (
 const (
 	// DefaultDeviceName specifies name of WireGuard network device.
 	DefaultDeviceName = "wg0"
-	// TODO use submariner prefix.
-	specEnvPrefix = "syncer"
 
 	UDPPort = 31820
 )
@@ -72,7 +69,7 @@ func (w *wireguard) RemovePeer(key *wgtypes.Key) error {
 }
 
 func (w *wireguard) AddPeer(peer *v1alpha1.Peer) error {
-
+	var endpoint *net.UDPAddr
 	if w.spec.ClusterID == peer.Spec.ClusterID {
 		klog.Infof("Will not connect to self")
 		return nil
@@ -80,8 +77,15 @@ func (w *wireguard) AddPeer(peer *v1alpha1.Peer) error {
 
 	// Parse remote addresses and allowed IPs.
 	remoteIP := net.ParseIP(peer.Spec.Endpoint)
+	remotePort := peer.Spec.Port
 	if remoteIP == nil {
-		return fmt.Errorf("failed to parse remote IP %s", peer.Spec.Endpoint)
+		klog.Infof("failed to parse remote IP %s, never mind just ignore.", peer.Spec.Endpoint)
+		endpoint = nil
+	} else {
+		endpoint = &net.UDPAddr{
+			IP:   remoteIP,
+			Port: remotePort,
+		}
 	}
 
 	allowedIPs := parseSubnets(peer.Spec.PodCIDR)
@@ -118,8 +122,6 @@ func (w *wireguard) AddPeer(peer *v1alpha1.Peer) error {
 	klog.Infof("Adding connection for cluster %s, %v", peer.Spec.ClusterID, peer)
 	w.connections[peer.Spec.ClusterID] = peer
 
-	remotePort := peer.Spec.Port
-
 	// configure peer 10s default todo make it configurable.
 	ka := 10 * time.Second
 	peerCfg := []wgtypes.PeerConfig{{
@@ -127,10 +129,7 @@ func (w *wireguard) AddPeer(peer *v1alpha1.Peer) error {
 		Remove:     false,
 		UpdateOnly: false,
 		// PresharedKey: w.psk, remove psk for now, because we haven't figure out how to keep and transfer it.
-		Endpoint: &net.UDPAddr{
-			IP:   remoteIP,
-			Port: remotePort,
-		},
+		Endpoint:                    endpoint,
 		PersistentKeepaliveInterval: &ka,
 		ReplaceAllowedIPs:           true,
 		AllowedIPs:                  allowedIPs,

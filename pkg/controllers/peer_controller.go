@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/dixudx/yacht"
-	"github.com/lmxia/syncer/pkg/known"
 	v1alpha1app "github.com/multi-cluster-network/octopus/pkg/apis/octopus.io/v1alpha1"
 	octopusinformers "github.com/multi-cluster-network/octopus/pkg/generated/informers/externalversions"
 	"github.com/multi-cluster-network/octopus/pkg/generated/listers/octopus.io/v1alpha1"
@@ -38,23 +37,25 @@ func NewPeerController(spec Specification, w *wireguard, octopusFactory octopusi
 
 	yachtController := yacht.NewController("peer").
 		WithCacheSynced(peerInformer.Informer().HasSynced).
-		WithHandlerFunc(peerController.Handle).WithEnqueueFilterFunc(func(oldObj, newObj interface{}) (bool, error) {
-		var tempObj interface{}
-		if newObj != nil {
-			tempObj = newObj
-		} else {
-			tempObj = oldObj
-		}
-
-		if tempObj != nil {
-			newPeer := tempObj.(*v1alpha1app.Peer)
-			// ignore the peer sourced from it-self
-			if newPeer.GetLabels()[known.LabelClusterID] == spec.ClusterID || !newPeer.Spec.IsHub {
-				return false, nil
+		WithHandlerFunc(peerController.Handle).
+		WithEnqueueFilterFunc(func(oldObj, newObj interface{}) (bool, error) {
+			var tempObj interface{}
+			if newObj != nil {
+				tempObj = newObj
+			} else {
+				tempObj = oldObj
 			}
-		}
-		return true, nil
-	})
+			//klog.Infof("we got a peer connection %v", tempObj)
+			if tempObj != nil {
+				newPeer := tempObj.(*v1alpha1app.Peer)
+				// hub connect with nohub, nohub connect with hub.
+				//if !spec.IsHub && !newPeer.Spec.IsHub || spec.IsHub && newPeer.Spec.IsHub {
+				if spec.IsHub == newPeer.Spec.IsHub {
+					return false, nil
+				}
+			}
+			return true, nil
+		})
 	_, err := peerInformer.Informer().AddEventHandler(yachtController.DefaultResourceEventHandlerFuncs())
 	if err != nil {
 		return nil, err

@@ -14,22 +14,27 @@ import (
 
 // ApplyEndPointSliceWithRetry create or update existed slices.
 func ApplyPeerWithRetry(client clientset.Interface, peer *v1alpha1.Peer) error {
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
+	return wait.ExponentialBackoffWithContext(context.TODO(), retry.DefaultBackoff, func(ctx context.Context) (bool, error) {
 		var lastError error
 		_, lastError = client.OctopusV1alpha1().Peers(peer.GetNamespace()).Create(context.TODO(), peer, metav1.CreateOptions{})
 		if lastError == nil {
-			return nil
+			klog.Infof("create peer %s successfully", peer.Name)
+			return true, nil
 		}
+		klog.Infof("create with error %v", lastError)
 		if !errors.IsAlreadyExists(lastError) {
 			klog.Infof("create with error %v", lastError)
-			return lastError
+			return false, lastError
 		}
 
 		curObj, err := client.OctopusV1alpha1().Peers(peer.GetNamespace()).Get(context.TODO(), peer.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
+		if err != nil || curObj.DeletionTimestamp != nil {
+			lastError = err
+			klog.Infof("get with error %v", lastError)
+			return false, err
+		} else {
+			lastError = nil
 		}
-		lastError = nil
 
 		if ResourceNeedResync(curObj, peer, false) {
 			// try to update peer
@@ -39,11 +44,12 @@ func ApplyPeerWithRetry(client clientset.Interface, peer *v1alpha1.Peer) error {
 			curObj.Spec.ClusterID = peer.Spec.ClusterID
 			curObj.Spec.Port = peer.Spec.Port
 			_, lastError = client.OctopusV1alpha1().Peers(peer.GetNamespace()).Update(context.TODO(), curObj, metav1.UpdateOptions{})
-			if lastError == nil {
-				return nil
-			}
 		}
-		return lastError
+		if lastError == nil {
+			return true, nil
+		}
+		klog.Infof("get with error %v", lastError)
+		return false, lastError
 	})
 }
 
