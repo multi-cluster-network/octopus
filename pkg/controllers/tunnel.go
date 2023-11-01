@@ -138,5 +138,7 @@ func (w *wireguard) Init() error {
 }
 
 func (w *wireguard) Cleanup() error {
-	return utils.DeletePeerWithRetry(w.octopusClient, w.spec.ClusterID, w.spec.ShareNamespace)
+	//return utils.DeletePeerWithRetry(w.octopusClient, w.spec.ClusterID, w.spec.ShareNamespace)
+	// it pretty hard to handle the case, when we update the deployment of the cnf pod, as to roll-update mechanism.
+	return nil
 }

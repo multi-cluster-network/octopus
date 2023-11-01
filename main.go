@@ -37,13 +37,15 @@ func main() {
 	agentSpec := controllers.Specification{}
 	restConfig, err := clientcmd.BuildConfigFromFlags(localMasterURL, localKubeconfig)
 	if err != nil {
-		//
+		klog.Fatal(err)
 		return
 	}
 	// we will merge this repo into syncer, so user syncer prefix for now.
-	if err := envconfig.Process("syncer", &agentSpec); err != nil {
+	if err := envconfig.Process("octopus", &agentSpec); err != nil {
+		klog.Infof("got config info %v", agentSpec)
 		klog.Fatal(err)
 	}
+	klog.Infof("got config info %v", agentSpec)
 
 	k8sClient, err := kubernetes.NewForConfig(restConfig)
 	if !agentSpec.IsHub {
@@ -59,12 +61,12 @@ func main() {
 	ctx := signals.SetupSignalHandler()
 	w, err := controllers.NewTunnel(oClient, &agentSpec, ctx.Done())
 	if err != nil {
-		//
+		klog.Fatal(err)
 		return
 	}
 	// up the interface.
 	if w.Init() != nil {
-		//
+		klog.Fatal(err)
 		return
 	}
 	hubInformerFactory := externalversions.NewSharedInformerFactoryWithOptions(oClient, known.DefaultResync, kubeinformers.WithNamespace(agentSpec.ShareNamespace))
